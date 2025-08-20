@@ -5,25 +5,16 @@ let lastFrameTime = 0; // last frame duration (inverse of FPS)
 const canvas = document.getElementById('game');
 if (!canvas) throw new Error('Could not find canvas.');
 
-Renderer.initialize(canvas);
 const camera = new Camera(canvas);
 
 const player = new Player();
 const world = new World();
 world.entities.push(player);
-world.entities.push(new Circle('c1', { x: 200, y: 0 }));
-world.entities.push(new Circle('c2', { x: 0, y: 0 }));
+//world.entities.push(new Circle('c1', { x: 0, y: 0 }, 2));
+world.entities.push(new Circle('c2', { x: 200, y: 0 }));
 const walkingNPC = new Living('l1', { x: -100, y: 0 }, 15, '#ff33ff', 50);
 walkingNPC.register(new WalkInCircle(walkingNPC)); // TODO: repetition?
 world.entities.push(walkingNPC);
-
-const resize = () => {
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    Renderer.gl.viewport(0, 0, canvas.width, canvas.height);
-};
-window.addEventListener('resize', resize);
-resize();
 
 Input.setup(canvas);
 
@@ -51,53 +42,79 @@ const update = (dt) => {
         entity.update(world, dt);
     }
 
-    camera.move(player.position); // No need to move to render as the player (and camera) wont move outside updates
+    camera.move(player.position);
 };
 
-const renderHUD = () => {
-    ctx.save();
-    ctx.resetTransform(); // draw in screen space
-    ctx.fillStyle = 'white';
-    ctx.font = '16px sans-serif';
+(async function main() {
+    Renderer.initialize(canvas);
+    const sprites = await Renderer.loadAtlas('sprites');
 
-    // Location
-    ctx.fillText(`(${player.position.x.toFixed(2)}, ${player.position.y.toFixed(2)})`, 10, 20);
+    const resize = () => {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        Renderer.gl.viewport(0, 0, canvas.width, canvas.height);
+    };
+    window.addEventListener('resize', resize);
+    resize();
 
-    // Framerate
-    ctx.textAlign = 'end';
-    const fps = lastFrameTime ? 1 / lastFrameTime : 0;
-    ctx.fillText(`${Math.floor(fps)} FPS`, canvas.width - 10, 20);
+    world.tiles.push(new Tile({ x: 0, y: 0 }, sprites, { x: 16, y: 205, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 1, y: 0 }, sprites, { x: 16 + HALF_TILE, y: 205, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: 2 }, sprites, { x: 16 + HALF_TILE, y: 205 + HALF_TILE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: 1 }, sprites, { x: 16, y: 205 + HALF_TILE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: -1 }, sprites, { x: 16, y: 205 - HALF_TILE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: -2 }, sprites, { x: 16 + TILE_SIZE, y: 205 - HALF_TILE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: -3 }, sprites, { x: 16 + TILE_SIZE, y: 205 - TILE_SIZE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: -4 }, sprites, { x: 16 + TILE_SIZE + HALF_TILE, y: 206, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: -5 }, sprites, { x: 16 + TILE_SIZE + HALF_TILE, y: 206 - TILE_SIZE - HALF_TILE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 2, y: 0 }, sprites, { x: 16 + TILE_SIZE + HALF_TILE, y: 206 - TILE_SIZE - HALF_TILE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 3, y: 0 }, sprites, { x: 16 + TILE_SIZE, y: 206 - TILE_SIZE - HALF_TILE, width: HALF_TILE, height: HALF_TILE }));
+    world.tiles.push(new Tile({ x: 4, y: 0 }, sprites, { x: 16 + TILE_SIZE + TILE_SIZE, y: 206 - TILE_SIZE, width: HALF_TILE, height: HALF_TILE }));
+    
+    const renderHUD = () => {
+        ctx.save();
+        ctx.resetTransform(); // draw in screen space
+        ctx.fillStyle = 'white';
+        ctx.font = '16px sans-serif';
 
-    ctx.restore();
-};
+        // Location
+        ctx.fillText(`(${player.position.x.toFixed(2)}, ${player.position.y.toFixed(2)})`, 10, 20);
 
-const render = () => {
-    const gl = Renderer.gl;
-    Renderer.gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+        // Framerate
+        ctx.textAlign = 'end';
+        const fps = lastFrameTime ? 1 / lastFrameTime : 0;
+        ctx.fillText(`${Math.floor(fps)} FPS`, canvas.width - 10, 20);
 
-    Renderer.push();
-    Renderer.translate({ x: -camera.position.x, y: -camera.position.y });
-    world.render(camera);
-    Renderer.pop();
+        ctx.restore();
+    };
 
-    // renderHUD();
-};
+    const render = () => {
+        const gl = Renderer.gl;
+        Renderer.gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clear(gl.COLOR_BUFFER_BIT);
 
-let accumulator = 0;
-let last = performance.now();
-const loop = () => {
-    const now = performance.now();
-    let frameTime = lastFrameTime = (now - last) / 1000;
-    if (frameTime > .25) frameTime = .25; // Skipping frames when lagging behind
-    last = now;
+        Renderer.push();
+        Renderer.translate({ x: -camera.position.x, y: -camera.position.y });
+        world.render(camera);
+        Renderer.pop();
 
-    for (accumulator += frameTime; accumulator >= STEP; accumulator -= STEP) {
-        update(STEP);
-    }
+        // renderHUD();
+    };
 
-    render();
-    requestAnimationFrame(loop);
-};
+    let accumulator = 0;
+    let last = performance.now();
+    const loop = () => {
+        const now = performance.now();
+        let frameTime = lastFrameTime = (now - last) / 1000;
+        if (frameTime > .25) frameTime = .25; // Skipping frames when lagging behind
+        last = now;
 
-loop();
+        for (accumulator += frameTime; accumulator >= STEP; accumulator -= STEP) {
+            update(STEP);
+        }
+
+        render();
+        requestAnimationFrame(loop);
+    };
+
+    loop();
+})();

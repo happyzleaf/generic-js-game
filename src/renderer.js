@@ -14,7 +14,7 @@ const Renderer = {
     textureCoord: null,
     textureCoordBuffer: null,
     textureProgram: null,
-    textureDefaultWhite: null,
+    textureDefault: null,
 
     stack: [],
     offset: { x: 0, y: 0 },
@@ -73,10 +73,49 @@ const Renderer = {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        Renderer.textureDefaultWhite = defaultTexture;
+        Renderer.textureDefault = defaultTexture;
 
         // unbind to be tidy
         gl.bindTexture(gl.TEXTURE_2D, null);
+    },
+
+    createTextureFromImage(image) {
+        const gl = Renderer.gl;
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        // Flip the image's Y axis so the image's top-left corresponds to texture v=0.
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        // Use nearest filtering and clamp to edge so non-power-of-two textures work safely.
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        return tex;
+    },
+
+    loadAtlas(id) {
+        const img = document.getElementById(id);
+        if (!img) return Promise.reject(new Error(`No image element with id '${id}'`));
+
+        const setup = () => {
+            return {
+                image: img,
+                texture: Renderer.createTextureFromImage(img),
+                width: img.naturalWidth,
+                height: img.naturalHeight
+            };
+        };
+
+        if (img.complete && img.naturalWidth !== 0) {
+            return Promise.resolve(setup());
+        }
+
+        return new Promise((resolve, reject) => {
+            img.addEventListener('load', () => resolve(setup()), { once: true });
+            img.addEventListener('error', () => reject(new Error(`Failed to load image '${imageId}'`)), { once: true });
+        });
     },
 
     parseHexColor(hex) {
@@ -153,7 +192,7 @@ const Renderer = {
         gl.vertexAttribPointer(Renderer.position, 2, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, Renderer.textureCoordBuffer);
-        const texCoords = [
+        let texCoords = [
             0, 0,
             1, 0,
             0, 1,
@@ -161,6 +200,25 @@ const Renderer = {
             1, 0,
             1, 1
         ];
+
+        let texture = asset.texture ?? Renderer.textureDefault;
+        if (asset.atlas) {
+            // atlas coordinates are provided in pixels relative to the atlas image
+            texture = asset.atlas.texture;
+            const u0 = asset.rect.x / asset.atlas.width;
+            const v0 = asset.rect.y / asset.atlas.height;
+            const u1 = (asset.rect.x + asset.rect.width) / asset.atlas.width;
+            const v1 = (asset.rect.y + asset.rect.height) / asset.atlas.height;
+            texCoords = [
+                u0, v0,
+                u1, v0,
+                u0, v1,
+                u0, v1,
+                u1, v0,
+                u1, v1
+            ];
+        }
+
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
         gl.enableVertexAttribArray(Renderer.textureCoord);
         gl.vertexAttribPointer(Renderer.textureCoord, 2, gl.FLOAT, false, 0, 0);
@@ -169,7 +227,7 @@ const Renderer = {
         gl.uniform4f(Renderer.color, r, g, b, a);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, asset.texture ?? Renderer.textureDefaultWhite);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.uniform1i(Renderer.texture, 0);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
