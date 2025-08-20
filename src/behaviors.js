@@ -10,7 +10,7 @@ class Behavior {
 }
 
 class WalkInCircle extends Behavior {
-    constructor(entity, angle = 0, radius = 5, center = null) {
+    constructor(entity, angle = 0, radius = 80, center = null) {
         if (!(entity instanceof Living)) throw new Error('Entity must be living to walk in circles.')
         super(entity);
         this.angle = angle;

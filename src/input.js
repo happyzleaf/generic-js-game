@@ -4,6 +4,10 @@ const Input = {
     keys: {},
     target: null,
     setup(canvas) {
+        // Keyboard
+        window.addEventListener('keydown', (e) => { Input.keys[e.key.toLowerCase()] = true; });
+        window.addEventListener('keyup',   (e) => { Input.keys[e.key.toLowerCase()] = false; });
+
         // Mouse
         canvas.addEventListener('mousedown', (e) => {
             Input.target = Input.getWorldPosition(canvas, e.clientX, e.clientY);
@@ -25,16 +29,12 @@ const Input = {
             const touch = e.touches[0];
             Input.target = Input.getWorldPosition(canvas, touch.clientX, touch.clientY);
         }, { passive: false });
-
-        // Keyboard
-        window.addEventListener('keydown', (e) => { Input.keys[e.key.toLowerCase()] = true; });
-        window.addEventListener('keyup',   (e) => { Input.keys[e.key.toLowerCase()] = false; });
     },
 
     getWorldPosition(canvas, clientX, clientY) {
         const rect = canvas.getBoundingClientRect();
-        const x = (clientX - rect.left + camera.position.x) / CELL_SIZE;
-        const y = (clientY - rect.top + camera.position.y) / CELL_SIZE;
+        const x = clientX - rect.left + camera.position.x;
+        const y = clientY - rect.top + camera.position.y;
         return { x, y };
     },
 
@@ -48,5 +48,5 @@ const Input = {
         const length = Math.hypot(dx, dy);
         if (length === 0) return null;
         return { dx: dx / length, dy: dy / length };
-    }
+    },
 };

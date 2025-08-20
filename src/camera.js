@@ -6,29 +6,19 @@ class Camera {
         this.position = position; // top-left
     }
 
-    follow(entity) {
-        const targetX = entity.position.x * CELL_SIZE;
-        const targetY = entity.position.y * CELL_SIZE;
-
-        const viewportWidth = canvas.width;
-        const viewportHeight = canvas.height;
-
-        this.position.x = targetX - viewportWidth / 2;
-        this.position.y = targetY - viewportHeight / 2;
+    move(position) {
+        this.position.x = position.x - this.canvas.width / 2;
+        this.position.y = position.y - this.canvas.height / 2;
     }
 
-    sees(entity) {
-        const px = entity.position.x * CELL_SIZE;
-        const py = entity.position.y * CELL_SIZE;
-
-        const viewportWidth = canvas.width;
-        const viewportHeight = canvas.height;
-
+    sees(position) {
+        const px = position.x;
+        const py = position.y;
         return (
-            px + CELL_SIZE > this.position.x &&
-            px - CELL_SIZE < this.position.x + viewportWidth &&
-            py + CELL_SIZE > this.position.y &&
-            py - CELL_SIZE < this.position.y + viewportHeight
+            px > this.position.x &&
+            px < this.position.x + canvas.width &&
+            py > this.position.y &&
+            py < this.position.y + canvas.height
         );
     }
 }

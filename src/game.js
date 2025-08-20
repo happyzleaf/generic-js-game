@@ -2,24 +2,25 @@
 
 let lastFrameTime = 0; // last frame duration (inverse of FPS)
 
-const canvas = document.getElementById("game");
+const canvas = document.getElementById('game');
 if (!canvas) throw new Error('Could not find canvas.');
 
-const ctx = canvas.getContext('2d');
+Renderer.initialize(canvas);
 const camera = new Camera(canvas);
 
 const player = new Player();
 const world = new World();
 world.entities.push(player);
-world.entities.push(new Circle('c1', { x: 5, y: 0 }));
+world.entities.push(new Circle('c1', { x: 200, y: 0 }));
 world.entities.push(new Circle('c2', { x: 0, y: 0 }));
-const walkingNPC = new Living('l1', { x: 0, y: 0 }, 15, 'orange', 2);
+const walkingNPC = new Living('l1', { x: -100, y: 0 }, 15, '#ff33ff', 50);
 walkingNPC.register(new WalkInCircle(walkingNPC)); // TODO: repetition?
 world.entities.push(walkingNPC);
 
 const resize = () => {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
+    Renderer.gl.viewport(0, 0, canvas.width, canvas.height);
 };
 window.addEventListener('resize', resize);
 resize();
@@ -31,7 +32,7 @@ const update = (dt) => {
     if (dir) {
         player.move(
             world,
-            { x: dir.dx * (player.speed / CELL_SIZE), y: dir.dy * (player.speed / CELL_SIZE) }
+            { x: dir.dx * player.speed, y: dir.dy * player.speed }
         );
         Input.target = null; // cancel click/tap target
     } else if (Input.target) {
@@ -40,8 +41,8 @@ const update = (dt) => {
         const dy = Input.target.y - player.position.y;
         const distance = Math.hypot(dx, dy);
 
-        const delta = { x: (dx / distance) * (player.speed / CELL_SIZE), y: (dy / distance) * (player.speed / CELL_SIZE) };
-        if (distance < 0.05 || !player.move(world, delta)) {
+        const dp = { x: (dx / distance) * player.speed, y: (dy / distance) * player.speed };
+        if (distance < player.radius || !player.move(world, dp)) {
             Input.target = null;
         }
     }
@@ -50,7 +51,7 @@ const update = (dt) => {
         entity.update(world, dt);
     }
 
-    camera.follow(player); // No need to move to render as the player (and camera) wont move outside updates
+    camera.move(player.position); // No need to move to render as the player (and camera) wont move outside updates
 };
 
 const renderHUD = () => {
@@ -71,11 +72,16 @@ const renderHUD = () => {
 };
 
 const render = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "green";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    world.render(ctx, camera);
-    renderHUD();
+    const gl = Renderer.gl;
+    Renderer.gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    Renderer.push();
+    Renderer.translate({ x: -camera.position.x, y: -camera.position.y });
+    world.render(camera);
+    Renderer.pop();
+
+    // renderHUD();
 };
 
 let accumulator = 0;

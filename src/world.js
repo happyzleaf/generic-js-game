@@ -5,16 +5,14 @@ class World {
         this.entities = [];
     }
 
-    render(ctx, camera) {
-        ctx.save();
-
-        ctx.translate(-camera.position.x, -camera.position.y);
+    render(camera) {
         for (let entity of this.entities) {
-            if (camera.sees(entity)) {
-                entity.render(ctx);
+            if (camera.sees(entity.position)) {
+                Renderer.push();
+                Renderer.translate(entity.position);
+                entity.render();
+                Renderer.pop();
             }
         }
-
-        ctx.restore();
     }
 }

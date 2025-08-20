@@ -27,20 +27,18 @@ class Entity {
 }
 
 class Circle extends Entity {
-    constructor(id, position, radius = 10, color = 'black') {
+    constructor(id, position, radius = 10, color = '#aabbcc') {
         super(id, position);
         this.radius = radius;
         this.color = color;
     }
 
-    render(ctx) {
-        const px = this.position.x * CELL_SIZE;
-        const py = this.position.y * CELL_SIZE;
-
-        ctx.beginPath();
-        ctx.arc(px, py, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
+    render() {
+        Renderer.render(
+            { color: this.color },
+            { x: -this.radius, y: -this.radius },
+            this.radius * 2, this.radius * 2
+        );
     }
 
     distance(entity, position) {
@@ -49,19 +47,12 @@ class Circle extends Entity {
         const dx = (position ? position.x : this.position.x) - entity.position.x;
         const dy = (position ? position.y : this.position.y) - entity.position.y;
         const distance = Math.hypot(dx, dy);
-        const threshold = (this.radius + entity.radius) / CELL_SIZE;
+        const threshold = this.radius + entity.radius;
         return distance - threshold;
     }
-}
 
-class Living extends Circle {
-    constructor(id, position, radius, color, speed = 0) {
-        super(id, position, radius, color);
-        this.speed = speed; // pixels per frame
-    }
-
-    move(world, delta) {
-        const next = { x: this.position.x + delta.x, y: this.position.y + delta.y };
+    move(world, dp) {
+        const next = { x: this.position.x + dp.x, y: this.position.y + dp.y };
 
         // check collisions
         for (let entity of world.entities) {
@@ -78,8 +69,15 @@ class Living extends Circle {
     }
 }
 
+class Living extends Circle {
+    constructor(id, position, radius, color, speed = 0) {
+        super(id, position, radius, color);
+        this.speed = speed; // pixels per frame
+    }
+}
+
 class Player extends Living {
     constructor(id = 'Player', position) {
-        super(id, position, 12, 'red', 5);
+        super(id, position, 12, '#ff0000', 5);
     }
 }
