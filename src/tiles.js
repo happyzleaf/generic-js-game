@@ -1,5 +1,7 @@
 "use strict"
 
+// For now these arent even used, everything is drawn from the chunk level.
+// Later these will hold logic.
 class Tile {
     constructor(position, atlas, rect) {
         if (!position || !atlas || !rect) throw new Error('Make sure to provide position, atlas and rect.');

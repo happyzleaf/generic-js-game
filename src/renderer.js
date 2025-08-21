@@ -45,7 +45,7 @@ const Renderer = {
             Renderer.createShader(gl.FRAGMENT_SHADER, `
                 precision mediump float;
                 uniform sampler2D u_texture;
-                uniform vec4 u_color;      // tint color (rgba)
+                uniform vec4 u_color;
                 varying vec2 v_texCoord;
 
                 void main() {
@@ -74,25 +74,21 @@ const Renderer = {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         Renderer.textureDefault = defaultTexture;
-
-        // unbind to be tidy
-        gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
     createTextureFromImage(image) {
         const gl = Renderer.gl;
-        const tex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        // Flip the image's Y axis so the image's top-left corresponds to texture v=0.
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-        // Use nearest filtering and clamp to edge so non-power-of-two textures work safely.
+
+        // Fix non-power-of-two textures
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null);
-        return tex;
+        return texture;
     },
 
     loadAtlas(id) {
@@ -114,7 +110,7 @@ const Renderer = {
 
         return new Promise((resolve, reject) => {
             img.addEventListener('load', () => resolve(setup()), { once: true });
-            img.addEventListener('error', () => reject(new Error(`Failed to load image '${imageId}'`)), { once: true });
+            img.addEventListener('error', () => reject(new Error(`Failed to load image '${id}'`)), { once: true });
         });
     },
 

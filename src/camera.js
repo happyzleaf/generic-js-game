@@ -16,9 +16,9 @@ class Camera {
         const py = position.y;
         return (
             px > this.position.x &&
-            px < this.position.x + canvas.width &&
+            px < this.position.x + this.canvas.width &&
             py > this.position.y &&
-            py < this.position.y + canvas.height
+            py < this.position.y + this.canvas.height
         );
     }
 }

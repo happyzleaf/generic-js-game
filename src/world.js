@@ -1,21 +1,13 @@
 "use strict"
 
 class World {
-    constructor() {
+    constructor(map) {
+        this.map = map;
         this.entities = [];
-        this.tiles = []; // TODO: just make it a map
     }
 
-    render(camera) {
-        for (let tile of this.tiles) {
-            const relative = { x: tile.position.x * TILE_SIZE, y: tile.position.y * TILE_SIZE };
-            if (camera.sees(relative)) {
-                Renderer.push();
-                Renderer.translate(relative);
-                tile.render();
-                Renderer.pop();
-            }
-        }
+    render(camera, tileset) {
+        if (this.map) this.map.render(tileset);
 
         for (let entity of this.entities) {
             if (camera.sees(entity.position)) {
