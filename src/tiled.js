@@ -114,7 +114,7 @@ class TiledTileset{
             square(position.mult(this.tileSize), this.tileSize)
         );
 
-        const extra = this.tiles ? this.tiles.get(i) : null;
+        const extra = this.getTile(i);
         if (extra) extra.render(position, this.tileSize);
     }
 }

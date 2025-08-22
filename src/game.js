@@ -32,7 +32,7 @@ window.addEventListener('resize', () => {
             if (dir.length() < player.radius) Input.target = null;
         }
 
-        const dp = dir.normalize().mult(player.speed);
+        const dp = dir.normalize().mult(player.speed * dt);
         if (dp.length() && !player.move(world, dp)) Input.target = null;
 
         world.update(dt);

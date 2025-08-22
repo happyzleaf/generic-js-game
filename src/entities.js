@@ -30,50 +30,63 @@ class Entity {
 
     distance(entity, position) {
         if (!position && this === entity) return 0;
-        position = position ?? entity.position;
-        const dx = position.x - entity.position.x;
-        const dy = position.y - entity.position.y;
-        return Math.hypot(dx, dy);
+        position = position ?? this.position;
+        return position.distance(entity.position);
     }
 
-    move(world, dp) {
+    testMove(world, dp) {
+        const dir = dp.normalize();
+        const max = dp.length();
+        let allowed = max;
+
         const next = this.position.sum(dp);
 
-        if (!this.colliders) {
-            this.position = next;
+        const check = (a, b, otherPosition) => {
+            const nextDistance = a.collidesWith(next, b, otherPosition);
+            if (nextDistance >= 0) return; // no collision
+
+            const currentDist = a.collidesWith(this.position, b, otherPosition);
+            if (currentDist < nextDistance) return; // moving away
+
+            // collision! calculate safe distance
+            const totalChange = currentDist - nextDistance;
+            let safeRatio = Math.max(0, Math.min(1, currentDist / totalChange));
+            const safeDistance = safeRatio * max;
+            allowed = Math.min(allowed, safeDistance);
+        };
+
+        // entities
+        for (let entity of world.entities) {
+            if (entity === this || !entity.colliders) continue;
+            for (let a of this.colliders) {
+                for (let b of entity.colliders) {
+                    check(a, b, entity.position);
+                }
+            }
+        }
+
+        // tiles
+        world.map.walk((tile, tilePosition) => {
+            if (!tile.colliders) return true;
+            for (let a of this.colliders) {
+                for (let b of tile.colliders) {
+                    check(a, b, tilePosition);
+                }
+            }
+            return true;
+        });
+
+        if (allowed > 0) {
+            const correction = dir.mult(allowed);
+            this.position = this.position.sum(correction);
             return true;
         }
 
-        // Check collisions with other entities using colliders
-        for (let entity of world.entities) {
-            if (entity === this) continue;
-            if (!entity.colliders) continue;
+        return false;
+    }
 
-            for (let a of this.colliders) {
-                for (let b of entity.colliders) {
-                    if (a.collidesWith(next, b, entity.position)) {
-                        return false; // collision detected, cancel movement
-                    }
-                }
-            }
-        }
-
-        const collided = !world.map.walk((tile, tilePosition) => {
-            if (!tile.colliders) return true; // continue
-
-            for (let a of this.colliders) {
-                for (let b of tile.colliders) {
-                    if (a.collidesWith(next, b, tilePosition)) return false; // collision! break
-                }
-            }
-
-            return true; // continue
-        });
-        if (collided) return false;
-
-        // Commit
-        this.position = next;
-        return true;
+    move(world, dp) {
+        return this.testMove(world, dp) || dp.x !== 0 && this.testMove(world, vec2(dp.x, 0)) || dp.y !== 0 && this.testMove(world, vec2(0, dp.y));
     }
 }
 
@@ -115,6 +128,6 @@ class Living extends Circle {
 
 class Player extends Living {
     constructor(id = 'Player', position) {
-        super(id, position, 12, '#ffffff', 5);
+        super(id, position, 12, '#ffffff', 200);
     }
 }

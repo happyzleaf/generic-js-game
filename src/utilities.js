@@ -31,6 +31,10 @@ class Vec2 {
         return Math.hypot(this.x, this.y);
     }
 
+    distance(to) {
+        return this.sub(to).length();
+    }
+
     normalize() {
         const len = this.length();
         if (len === 0) return vec2();

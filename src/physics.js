@@ -15,25 +15,32 @@ class RectCollider extends Collider {
     collidesWith(position, collider, colliderPosition) {
         if (!(collider instanceof RectCollider)) throw new Error('Unsupported collision.');
 
-        let aPos = position;
-        if (this.offset) aPos = aPos.sum(this.offset);
+        const thisPos = this.offset ? position.sum(this.offset) : position;
+        const otherPos = collider.offset ? colliderPosition.sum(collider.offset) : colliderPosition;
 
-        let bPos = colliderPosition;
-        if (collider.offset) bPos = bPos.sum(collider.offset);
+        // Edges
+        const thisLeft   = thisPos.x;
+        const thisTop    = thisPos.y;
+        const thisRight  = thisLeft + this.size.x;
+        const thisBottom = thisTop + this.size.y;
+        const otherLeft   = otherPos.x;
+        const otherTop    = otherPos.y;
+        const otherRight  = otherLeft + collider.size.x;
+        const otherBottom = otherTop + collider.size.y;
 
-        const aLeft = aPos.x;
-        const aTop = aPos.y;
-        const aRight = aPos.x + this.size.x;
-        const aBottom = aPos.y + this.size.y;
+        // Gaps
+        const horizontalGap = Math.max(thisLeft - otherRight, otherLeft - thisRight);
+        const verticalGap   = Math.max(thisTop - otherBottom, otherTop - thisBottom);
 
-        const bLeft = bPos.x;
-        const bTop = bPos.y;
-        const bRight = bPos.x + collider.size.x;
-        const bBottom = bPos.y + collider.size.y;
+        if (horizontalGap > 0 || verticalGap > 0) {
+            // No collision
+            return Math.max(horizontalGap, verticalGap); // distance
+        }
 
-        // No overlap if one rectangle is completely to one side of the other
-        const separated = aRight <= bLeft || aLeft >= bRight || aBottom <= bTop || aTop >= bBottom;
-        return !separated;
+        // collision! return how much they be touchin
+        const overlapWidth  = Math.min(thisRight, otherRight) - Math.max(thisLeft, otherLeft);
+        const overlapHeight = Math.min(thisBottom, otherBottom) - Math.max(thisTop, otherTop);
+        return -Math.min(overlapWidth, overlapHeight);
     }
 
     render(position) {
