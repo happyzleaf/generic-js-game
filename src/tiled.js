@@ -3,10 +3,26 @@
 // We use infinite Tiled maps divided in chunks
 // Check out their editor: https://www.mapeditor.org/
 
+// TODO: Make this whole class use the source tileheight instead of TILE_SIZE
+
 class TiledChunk {
     constructor(rect, data = []) {
         this.rect = rect;
         this.data = data;
+    }
+
+    walk(tileset, consumer) {
+        for (let y = 0; y < this.rect.height; y++) {
+            for (let x = 0; x < this.rect.width; x++) {
+                const index = y * this.rect.width + x;
+                const gid = this.data[index];
+                if (!gid) continue; // 0 = empty
+                const tile = tileset.getTile(gid - 1);
+                if (!tile) continue;
+                if (!consumer(tile, vec2(x, y).sum(this.rect.position).mult(tileset.tileSize))) return false;
+            }
+        }
+        return true;
     }
 
     render(tileset) {
@@ -15,7 +31,7 @@ class TiledChunk {
                 const index = y * this.rect.width + x;
                 const gid = this.data[index];
                 if (!gid) continue; // 0 = empty
-                tileset.render(gid - 1, x, y);
+                tileset.render(gid - 1, vec2(x, y));
             }
         }
     }
@@ -27,6 +43,13 @@ class TiledLayer {
         this.rect = rect;
         this.visible = visible;
         this.chunks = chunks;
+    }
+
+    walk(tileset, consumer) {
+        for (let chunk of this.chunks) {
+            if (!chunk.walk(tileset, consumer)) return false;
+        }
+        return true;
     }
 
     render(tileset) {
@@ -49,17 +72,11 @@ class TiledTile {
         this.colliders = colliders && colliders.length ? colliders : null;
     }
 
-    renderColliders(x, y) {
+    render(position, tileSize) {
         if (!this.colliders) return;
 
         for (let collider of this.colliders) {
-            Renderer.render(
-                { color: '#ff0000bb' },
-                rect(
-                    vec2(x, y).mult(TILE_SIZE).sum(collider.position),
-                    collider.width, collider.height
-                )
-            );
+            collider.render(position.mult(tileSize));
         }
     }
 }
@@ -84,17 +101,21 @@ class TiledTileset{
         this.atlas = await Renderer.loadAtlas(this.id, element);    
     }
 
-    render(i, x, y) {
-        const sx = (i % this.columns) * TILE_SIZE;
-        const sy = Math.floor(i / this.columns) * TILE_SIZE;
+    getTile(i) {
+        return this.tiles ? this.tiles.get(i) : null;
+    }
+
+    render(i, position) {
+        const sx = (i % this.columns) * this.tileSize;
+        const sy = Math.floor(i / this.columns) * this.tileSize;
 
         Renderer.render(
-            { atlas: this.atlas, rect: square(vec2(sx, sy), TILE_SIZE) },
-            square(vec2(x, y).mult(TILE_SIZE), TILE_SIZE)
+            { atlas: this.atlas, rect: square(vec2(sx, sy), this.tileSize) },
+            square(position.mult(this.tileSize), this.tileSize)
         );
 
         const extra = this.tiles ? this.tiles.get(i) : null;
-        if (extra) extra.renderColliders(x, y);
+        if (extra) extra.render(position, this.tileSize);
     }
 }
 
@@ -109,6 +130,14 @@ class TiledMap {
         for (let tileset of this.tilesets) {
             await tileset.load();
         }
+    }
+
+    walk(consumer) {
+        const tileset = this.tilesets[0];
+        for (let layer of this.layers) {
+            if (!layer.walk(tileset, consumer)) return false;
+        }
+        return true;
     }
 
     render() {
@@ -143,9 +172,9 @@ const TiledParser = {
                     if (collider.type !== TiledParser.COLLIDER_TYPE) throw new Error('Unsupported collider type.');
 
                     for (let block of collider.objects ?? []) {
-                        colliders.push(rect(
-                            vec2(collider.x + block.x, collider.y + block.y),
-                            block.width, block.height
+                        colliders.push(new RectCollider(
+                            vec2(block.width, block.height),
+                            vec2(collider.x + block.x, collider.y + block.y)
                         ));
                     }
                 }

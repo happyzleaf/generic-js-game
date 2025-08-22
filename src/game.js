@@ -24,35 +24,25 @@ window.addEventListener('resize', () => {
 
 (async function main() {
     const update = (dt) => {
-        const dir = Input.getDirection();
-        if (dir) {
-            player.move(
-                world,
-                dir.mult(player.speed),
-            );
-            Input.target = null; // cancel click/tap target
+        let dir = Input.getDirection();
+        if (dir && dir.length()) {
+            Input.target = null; // cancel click target when using keyboard
         } else if (Input.target) {
-            // Move toward click/tap
-            const dx = Input.target.x - player.position.x;
-            const dy = Input.target.y - player.position.y;
-            const distance = Math.hypot(dx, dy);
-
-            const dp = vec2(dx / distance, dy / distance).mult(player.speed);
-            if (distance < player.radius || !player.move(world, dp)) {
-                Input.target = null;
-            }
+            dir = Input.target.sub(player.position);
+            if (dir.length() < player.radius) Input.target = null;
         }
 
-        for (let entity of world.entities) {
-            entity.update(world, dt);
-        }
+        const dp = dir.normalize().mult(player.speed);
+        if (dp.length() && !player.move(world, dp)) Input.target = null;
+
+        world.update(dt);
 
         camera.move(player.position);
     };
 
-    const overworldReq = await fetch('/assets/overworld.json');
-    if (!overworldReq || !overworldReq.ok) throw new Error('Could not load overworld data.');
-    const overworld = TiledParser.parse(await overworldReq.json());
+    const overworldFile = await fetch('/assets/overworld.json');
+    if (!overworldFile || !overworldFile.ok) throw new Error('Could not load overworld data.');
+    const overworld = TiledParser.parse(await overworldFile.json());
 
     const player = new Player();
     const world = new World(overworld);
@@ -72,7 +62,7 @@ window.addEventListener('resize', () => {
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         Renderer.push();
-        Renderer.translate(vec2(-camera.position.x, -camera.position.y));
+        Renderer.translate(camera.position.mult(-1));
         world.render(camera);
         Renderer.pop();
     };

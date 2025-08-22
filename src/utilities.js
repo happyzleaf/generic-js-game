@@ -26,36 +26,79 @@ class Vec2 {
         this.y = y;
     }
 
+    // Distance from (0, 0) to (x, y)
+    length() {
+        return Math.hypot(this.x, this.y);
+    }
+
+    normalize() {
+        const len = this.length();
+        if (len === 0) return vec2();
+        return this.div(len);
+    }
+
+    sum(first, second) {
+        // Scalar
+        if (isNumber(first)) {
+            if (second === undefined) second = first;
+            return new Vec2(this.x + first, this.y + second);
+        }
+
+        // Vectorial
+        if (first instanceof Vec2) {
+            return new Vec2(this.x + first.x, this.y + first.y);
+        }
+
+        throw new Error('Operand not recognized.');
+    }
+
+    sub(first, second) {
+        // Scalar
+        if (isNumber(first)) {
+            if (second === undefined) second = first;
+            return new Vec2(this.x - first, this.y - second);
+        }
+
+        // Vectorial
+        if (first instanceof Vec2) {
+            return new Vec2(this.x - first.x, this.y - first.y);
+        }
+
+        throw new Error('Operand not recognized.');
+    }
+
+    mult(first, second) {
+        // Scalar
+        if (isNumber(first)) {
+            if (second === undefined) second = first;
+            return new Vec2(this.x * first, this.y * second);
+        }
+
+        // Vectorial
+        if (first instanceof Vec2) {
+            return new Vec2(this.x * first.x, this.y * first.y);
+        }
+
+        throw new Error('Operand not recognized.');
+    }
+
+    div(first, second) {
+        // Scalar
+        if (isNumber(first)) {
+            if (second === undefined) second = first;
+            return new Vec2(this.x / first, this.y / second);
+        }
+
+        // Vectorial
+        if (first instanceof Vec2) {
+            return new Vec2(this.x / first.x, this.y / first.y);
+        }
+
+        throw new Error('Operand not recognized.');
+    }
+
     copy() {
         return new Vec2(this.x, this.y);
-    }
-
-    sum(operand) {
-        // Scalar
-        if (isNumber(operand)) {
-            return new Vec2(this.x + operand, this.y + operand);
-        }
-
-        // Vectorial
-        if (operand instanceof Vec2) {
-            return new Vec2(this.x + operand.x, this.y + operand.y);
-        }
-
-        throw new Error('Operand not recognized.');
-    }
-
-    mult(operand) {
-        // Scalar
-        if (isNumber(operand)) {
-            return new Vec2(this.x * operand, this.y * operand);
-        }
-
-        // Vectorial
-        if (operand instanceof Vec2) {
-            return new Vec2(this.x * operand.x, this.y * operand.y);
-        }
-
-        throw new Error('Operand not recognized.');
     }
 }
 

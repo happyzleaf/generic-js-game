@@ -6,6 +6,12 @@ class World {
         this.entities = [];
     }
 
+    update(dt) {
+        for (let entity of this.entities) {
+            entity.update(this, dt);
+        }
+    }
+
     render(camera, tileset) {
         if (this.map) this.map.render(tileset);
 

@@ -1,9 +1,10 @@
 "use strict"
 
 class Entity {
-    constructor(id, position = vec2()) {
+    constructor(id, position = vec2(), colliders = null) {
         this.id = id;
         this.position = position;
+        this.colliders = colliders && colliders.length ? colliders : null;
     }
 
     register(behavior) {
@@ -19,16 +20,66 @@ class Entity {
         }
     }
 
-    render() {}
+    render() {
+        if (!this.colliders) return;
+
+        for (let collider of this.colliders) {
+            collider.render(vec2());
+        }
+    }
 
     distance(entity, position) {
-        return false;
+        if (!position && this === entity) return 0;
+        position = position ?? entity.position;
+        const dx = position.x - entity.position.x;
+        const dy = position.y - entity.position.y;
+        return Math.hypot(dx, dy);
+    }
+
+    move(world, dp) {
+        const next = this.position.sum(dp);
+
+        if (!this.colliders) {
+            this.position = next;
+            return true;
+        }
+
+        // Check collisions with other entities using colliders
+        for (let entity of world.entities) {
+            if (entity === this) continue;
+            if (!entity.colliders) continue;
+
+            for (let a of this.colliders) {
+                for (let b of entity.colliders) {
+                    if (a.collidesWith(next, b, entity.position)) {
+                        return false; // collision detected, cancel movement
+                    }
+                }
+            }
+        }
+
+        const collided = !world.map.walk((tile, tilePosition) => {
+            if (!tile.colliders) return true; // continue
+
+            for (let a of this.colliders) {
+                for (let b of tile.colliders) {
+                    if (a.collidesWith(next, b, tilePosition)) return false; // collision! break
+                }
+            }
+
+            return true; // continue
+        });
+        if (collided) return false;
+
+        // Commit
+        this.position = next;
+        return true;
     }
 }
 
 class Circle extends Entity {
     constructor(id, position, radius = 10, color = '#aabbcc') {
-        super(id, position);
+        super(id, position, [new RectCollider(vec2(radius * 2, radius * 2), vec2(-radius, -radius))]);
         this.radius = radius;
         this.color = color;
     }
@@ -41,33 +92,17 @@ class Circle extends Entity {
                 this.radius * 2,
             )
         );
+
+        super.render();
     }
 
     distance(entity, position) {
         if (this === entity) return 0;
-        //if (!(entity instanceof Circle)) return 0;
         const dx = (position ? position.x : this.position.x) - entity.position.x;
         const dy = (position ? position.y : this.position.y) - entity.position.y;
         const distance = Math.hypot(dx, dy);
         const threshold = this.radius + entity.radius;
         return distance - threshold;
-    }
-
-    move(world, dp) {
-        const next = this.position.sum(dp);
-
-        // check collisions
-        for (let entity of world.entities) {
-            const nextDistance = this.distance(entity, next);
-            if (nextDistance >= 0) continue;
-
-            const currentDistance = this.distance(entity);
-            if (currentDistance >= nextDistance) return false;
-        }
-
-        // no collision
-        this.position = next;
-        return true;
     }
 }
 
@@ -80,6 +115,6 @@ class Living extends Circle {
 
 class Player extends Living {
     constructor(id = 'Player', position) {
-        super(id, position, 12, '#ff0000', 5);
+        super(id, position, 12, '#ffffff', 5);
     }
 }
