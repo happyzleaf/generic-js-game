@@ -47,6 +47,6 @@ const Input = {
 
         const length = Math.hypot(dx, dy);
         if (length === 0) return null;
-        return { dx: dx / length, dy: dy / length };
+        return vec2(dx / length, dy / length);
     },
 };

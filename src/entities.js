@@ -1,7 +1,7 @@
 "use strict"
 
 class Entity {
-    constructor(id, position = { x: 0, y: 0 }) {
+    constructor(id, position = vec2()) {
         this.id = id;
         this.position = position;
     }
@@ -36,8 +36,10 @@ class Circle extends Entity {
     render() {
         Renderer.render(
             { color: this.color },
-            { x: -this.radius, y: -this.radius },
-            this.radius * 2, this.radius * 2
+            square(
+                vec2(-this.radius, -this.radius),
+                this.radius * 2,
+            )
         );
     }
 
@@ -52,7 +54,7 @@ class Circle extends Entity {
     }
 
     move(world, dp) {
-        const next = { x: this.position.x + dp.x, y: this.position.y + dp.y };
+        const next = this.position.sum(dp);
 
         // check collisions
         for (let entity of world.entities) {

@@ -17,7 +17,9 @@ const Renderer = {
     textureDefault: null,
 
     stack: [],
-    offset: { x: 0, y: 0 },
+    offset: vec2(),
+
+    atlases: new Map(),
 
     initialize(canvas) {
         Renderer.canvas = canvas;
@@ -87,46 +89,38 @@ const Renderer = {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
         gl.bindTexture(gl.TEXTURE_2D, null);
         return texture;
     },
 
-    loadAtlas(id) {
-        const img = document.getElementById(id);
-        if (!img) return Promise.reject(new Error(`No image element with id '${id}'`));
+    loadAtlas(id, image) {
+        if (Renderer.atlases.has(id)) throw new Error(`There is already an atlas with the id '${id}'.`);
 
-        const setup = () => {
-            return {
-                image: img,
-                texture: Renderer.createTextureFromImage(img),
-                width: img.naturalWidth,
-                height: img.naturalHeight
+        const retrieve = () => {
+            if (Renderer.atlases.has(id)) throw new Error(`There is (now) already an atlas with the id '${id}'.`);
+
+            const atlas = {
+                id,
+                image,
+                texture: Renderer.createTextureFromImage(image),
+                width: image.naturalWidth,
+                height: image.naturalHeight
             };
+
+            Renderer.atlases.set(id, atlas);
+
+            return atlas;
         };
 
-        if (img.complete && img.naturalWidth !== 0) {
-            return Promise.resolve(setup());
+        if (image.complete && image.naturalWidth !== 0) {
+            return Promise.resolve(retrieve());
         }
 
         return new Promise((resolve, reject) => {
-            img.addEventListener('load', () => resolve(setup()), { once: true });
-            img.addEventListener('error', () => reject(new Error(`Failed to load image '${id}'`)), { once: true });
+            image.addEventListener('load', () => resolve(retrieve()), { once: true });
+            image.addEventListener('error', () => reject(new Error(`Failed to load image '${id}'.`)), { once: true });
         });
-    },
-
-    parseHexColor(hex) {
-        if (!hex) return [1, 1, 1, 1];
-        let s = hex.replace('#', '');
-        if (s.length === 3) { // short form RGB -> expand
-            s = s.split('').map(c => c + c).join('');
-        }
-        if (s.length === 6) s += 'ff';
-        if (s.length !== 8) return [1, 1, 1, 1];
-        const r = parseInt(s.slice(0, 2), 16) / 255;
-        const g = parseInt(s.slice(2, 4), 16) / 255;
-        const b = parseInt(s.slice(4, 6), 16) / 255;
-        const a = parseInt(s.slice(6, 8), 16) / 255;
-        return [r, g, b, a];
     },
 
     createShader(type, source) {
@@ -134,9 +128,9 @@ const Renderer = {
         const shader = gl.createShader(type);
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            throw new Error(gl.getShaderInfoLog(shader));
-        }
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+
         return shader;
     },
 
@@ -146,28 +140,27 @@ const Renderer = {
         gl.attachShader(program, vertexShader);
         gl.attachShader(program, fragmentShader);
         gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            throw new Error(gl.getProgramInfoLog(program));
-        }
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+
         return program;
     },
 
     push() {
-        Renderer.stack.push( { x: Renderer.offset.x, y: Renderer.offset.y } );
+        Renderer.stack.push(Renderer.offset.copy());
     },
 
     pop() {
-        Renderer.offset = Renderer.stack ? Renderer.stack.pop() : { x: 0, y: 0 };
+        Renderer.offset = Renderer.stack && Renderer.stack.length ? Renderer.stack.pop() : vec2();
     },
 
     translate(position) {
-        Renderer.offset.x += position.x;
-        Renderer.offset.y += position.y;
+        Renderer.offset = Renderer.offset.sum(position);
     },
 
-    render(asset, position, width, height) {
-        const x = position.x + Renderer.offset.x;
-        const y = position.y + Renderer.offset.y;
+    render(asset, rect) {
+        const x = rect.position.x + Renderer.offset.x;
+        const y = rect.position.y + Renderer.offset.y;
         const gl = Renderer.gl;
 
         const program = Renderer.textureProgram;
@@ -177,18 +170,20 @@ const Renderer = {
         gl.bindBuffer(gl.ARRAY_BUFFER, Renderer.positionBuffer);
         const positions = [
             x, y,
-            x + width, y,
-            x, y + height,
-            x, y + height,
-            x + width, y,
-            x + width, y + height
+            x + rect.width, y,
+            x, y + rect.height,
+            x, y + rect.height,
+            x + rect.width, y,
+            x + rect.width, y + rect.height
         ];
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
         gl.enableVertexAttribArray(Renderer.position);
         gl.vertexAttribPointer(Renderer.position, 2, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, Renderer.textureCoordBuffer);
-        let texCoords = [
+
+        let texture = asset.texture ?? Renderer.textureDefault;
+        let coordinates = [
             0, 0,
             1, 0,
             0, 1,
@@ -197,15 +192,13 @@ const Renderer = {
             1, 1
         ];
 
-        let texture = asset.texture ?? Renderer.textureDefault;
         if (asset.atlas) {
-            // atlas coordinates are provided in pixels relative to the atlas image
             texture = asset.atlas.texture;
-            const u0 = asset.rect.x / asset.atlas.width;
-            const v0 = asset.rect.y / asset.atlas.height;
-            const u1 = (asset.rect.x + asset.rect.width) / asset.atlas.width;
-            const v1 = (asset.rect.y + asset.rect.height) / asset.atlas.height;
-            texCoords = [
+            const u0 = asset.rect.position.x / asset.atlas.width;
+            const v0 = asset.rect.position.y / asset.atlas.height;
+            const u1 = (asset.rect.position.x + asset.rect.width) / asset.atlas.width;
+            const v1 = (asset.rect.position.y + asset.rect.height) / asset.atlas.height;
+            coordinates = [
                 u0, v0,
                 u1, v0,
                 u0, v1,
@@ -215,11 +208,11 @@ const Renderer = {
             ];
         }
 
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(coordinates), gl.STATIC_DRAW);
         gl.enableVertexAttribArray(Renderer.textureCoord);
         gl.vertexAttribPointer(Renderer.textureCoord, 2, gl.FLOAT, false, 0, 0);
 
-        const [r, g, b, a] = Renderer.parseHexColor(asset.color);
+        const [r, g, b, a] = hex2rgba(asset.color);
         gl.uniform4f(Renderer.color, r, g, b, a);
 
         gl.activeTexture(gl.TEXTURE0);

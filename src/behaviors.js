@@ -15,7 +15,7 @@ class WalkInCircle extends Behavior {
         super(entity);
         this.angle = angle;
         this.radius = radius;
-        this.center = center ?? { x: entity.position.x - radius, y: entity.position.y };
+        this.center = center ?? vec2(entity.position.x - radius, entity.position.y);
     }
 
     update(world, dt) {
@@ -25,7 +25,7 @@ class WalkInCircle extends Behavior {
         const targetX = this.center.x + Math.cos(targetAngle) * this.radius;
         const targetY = this.center.y + Math.sin(targetAngle) * this.radius;
 
-        const delta = { x: targetX - this.entity.position.x, y: targetY - this.entity.position.y };
+        const delta = vec2(targetX - this.entity.position.x, targetY - this.entity.position.y);
         if (this.entity.move(world, delta)) this.angle = targetAngle;
     }
 }

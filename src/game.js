@@ -28,7 +28,7 @@ window.addEventListener('resize', () => {
         if (dir) {
             player.move(
                 world,
-                { x: dir.dx * player.speed, y: dir.dy * player.speed }
+                dir.mult(player.speed),
             );
             Input.target = null; // cancel click/tap target
         } else if (Input.target) {
@@ -37,7 +37,7 @@ window.addEventListener('resize', () => {
             const dy = Input.target.y - player.position.y;
             const distance = Math.hypot(dx, dy);
 
-            const dp = { x: (dx / distance) * player.speed, y: (dy / distance) * player.speed };
+            const dp = vec2(dx / distance, dy / distance).mult(player.speed);
             if (distance < player.radius || !player.move(world, dp)) {
                 Input.target = null;
             }
@@ -57,13 +57,14 @@ window.addEventListener('resize', () => {
     const player = new Player();
     const world = new World(overworld);
     world.entities.push(player);
-    //world.entities.push(new Circle('c1', { x: 0, y: 0 }, 2));
-    world.entities.push(new Circle('c2', { x: 200, y: 0 }));
-    const walkingNPC = new Living('l1', { x: -100, y: 0 }, 15, '#ff33ff', 50);
+    //world.entities.push(new Circle('c1', vec2(), 2));
+    world.entities.push(new Circle('c2', vec2(200, 0)));
+    const walkingNPC = new Living('l1', vec2(-100, 0), 15, '#ff33ff', 50);
     walkingNPC.register(new WalkInCircle(walkingNPC)); // TODO: repetition?
     world.entities.push(walkingNPC);
 
-    const tileset = await Renderer.loadAtlas('overworld');
+    // Loading tilesets
+    await overworld.load();
 
     const render = () => {
         const gl = Renderer.gl;
@@ -71,8 +72,8 @@ window.addEventListener('resize', () => {
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         Renderer.push();
-        Renderer.translate({ x: -camera.position.x, y: -camera.position.y });
-        world.render(camera, tileset);
+        Renderer.translate(vec2(-camera.position.x, -camera.position.y));
+        world.render(camera);
         Renderer.pop();
     };
 

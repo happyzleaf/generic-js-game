@@ -1,9 +1,9 @@
 "use strict"
 
 class Camera {
-    constructor(canvas, position = { x: 0, y: 0 }) {
+    constructor(canvas, position = vec2()) {
         this.canvas = canvas;
-        this.position = position; // top-left
+        this.position = position;
     }
 
     move(position) {
